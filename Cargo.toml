@@ -1,0 +1,11 @@
+[package]
+name = "ratetrace"
+version = "0.1.0"
+edition = "2021"
+authors = ["john-b331"]
+license = "MIT"
+description = "A query tool for reasoning about rate limit configs and request traces"
+
+[[bin]]
+name = "ratetrace"
+path = "src/main.rs"
