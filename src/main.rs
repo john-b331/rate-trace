@@ -1,5 +1,6 @@
 mod config;
 mod diagnostics;
+mod simulate;
 
 use diagnostics::SourceMap;
 use std::env;

@@ -11,9 +11,10 @@ hits the limit. `ratetrace` reads rate limit rules from a small text format
 and validates them, so a bad config gets caught immediately with an exact
 pointer to the mistake instead of a stack trace at 2am.
 
-Trace simulation (the "when does request #N get throttled" part) is not
-built yet — see Roadmap below. What's here today is the rules parser and
-its error reporting, which the rest of the tool builds on.
+The rules parser and its error reporting are done, and so is the token
+bucket that decides whether a given request at a given time is allowed or
+throttled. What's still missing is a way to feed it a trace and ask the
+question end to end — see Roadmap below.
 
 ## The rules format
 
@@ -78,7 +79,6 @@ No external dependencies — just `cargo build` or `cargo run`.
 
 ## Roadmap
 
-- simulate request traces against parsed rules
 - add a `ratetrace trace` subcommand that answers "which request gets throttled first"
 - support multi-span diagnostics for duplicate rule errors (point at both definitions)
 - add unit tests for lexer/parser edge cases
