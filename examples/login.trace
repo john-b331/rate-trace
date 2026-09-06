@@ -1,0 +1,7 @@
+# five password reset attempts back to back; the rule only allows a
+# burst of 4 (rate 3/min + burst 1) before it starts rejecting.
+password_reset 0
+password_reset 0
+password_reset 0
+password_reset 0
+password_reset 0
