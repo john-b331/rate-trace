@@ -8,31 +8,58 @@ pub struct Diagnostic {
     pub offset: usize,
     pub len: usize,
     pub help: Option<String>,
+    pub secondary: Option<Secondary>,
+}
+
+/// A second source location attached to a diagnostic, e.g. the earlier
+/// definition a duplicate clashes with. Rendered as its own snippet
+/// after the primary one, same as rustc's "note: ... previous definition
+/// here" spans.
+pub struct Secondary {
+    pub message: String,
+    pub offset: usize,
+    pub len: usize,
 }
 
 impl Diagnostic {
     pub fn render(&self, file_name: &str, map: &SourceMap) -> String {
-        let (line, col) = map.line_col(self.offset);
-        let line_text = map.line_text(line);
-        let gutter = line.to_string();
-        let pad: String = " ".repeat(gutter.len());
-        let caret_indent = col.saturating_sub(1);
-
         let mut out = String::new();
         out.push_str(&format!("error: {}\n", self.message));
-        out.push_str(&format!("{pad}--> {file_name}:{line}:{col}\n"));
-        out.push_str(&format!("{pad} |\n"));
-        out.push_str(&format!("{gutter} | {line_text}\n"));
-        out.push_str(&format!(
-            "{pad} | {}{}\n",
-            " ".repeat(caret_indent),
-            "^".repeat(self.len.max(1))
-        ));
+        out.push_str(&render_span(file_name, map, self.offset, self.len));
         if let Some(help) = &self.help {
-            out.push_str(&format!("{pad} = help: {help}\n"));
+            let gutter_width = map.line_col(self.offset).0.to_string().len();
+            out.push_str(&format!("{} = help: {help}\n", " ".repeat(gutter_width)));
+        }
+        if let Some(secondary) = &self.secondary {
+            out.push_str(&format!("note: {}\n", secondary.message));
+            out.push_str(&render_span(
+                file_name,
+                map,
+                secondary.offset,
+                secondary.len,
+            ));
         }
         out
     }
+}
+
+fn render_span(file_name: &str, map: &SourceMap, offset: usize, len: usize) -> String {
+    let (line, col) = map.line_col(offset);
+    let line_text = map.line_text(line);
+    let gutter = line.to_string();
+    let pad: String = " ".repeat(gutter.len());
+    let caret_indent = col.saturating_sub(1);
+
+    let mut out = String::new();
+    out.push_str(&format!("{pad}--> {file_name}:{line}:{col}\n"));
+    out.push_str(&format!("{pad} |\n"));
+    out.push_str(&format!("{gutter} | {line_text}\n"));
+    out.push_str(&format!(
+        "{pad} | {}{}\n",
+        " ".repeat(caret_indent),
+        "^".repeat(len.max(1))
+    ));
+    out
 }
 
 /// Precomputes line start offsets once so repeated offset -> (line, col)

@@ -9,7 +9,7 @@
 // offsets, so every failure can be reported with an exact line/column
 // and a source snippet via `diagnostics::Diagnostic`.
 
-use crate::diagnostics::Diagnostic;
+use crate::diagnostics::{Diagnostic, Secondary};
 use std::collections::HashMap;
 use std::time::Duration;
 
@@ -29,12 +29,17 @@ pub fn parse_rules(src: &str) -> Result<Vec<RateLimit>, Diagnostic> {
 
     while !matches!(parser.cur.kind, TokenKind::Eof) {
         let rule = parser.parse_rule()?;
-        if seen.contains_key(&rule.name) {
+        if let Some(&first_offset) = seen.get(&rule.name) {
             return Err(Diagnostic {
                 message: format!("rule '{}' is defined more than once", rule.name),
                 offset: rule.name_offset,
                 len: rule.name.len(),
                 help: Some("rule names must be unique within a file".to_string()),
+                secondary: Some(Secondary {
+                    message: format!("'{}' first defined here", rule.name),
+                    offset: first_offset,
+                    len: rule.name.len(),
+                }),
             });
         }
         seen.insert(rule.name.clone(), rule.name_offset);
@@ -135,6 +140,7 @@ impl<'a> Lexer<'a> {
             offset: start,
             len: self.pos - start,
             help: None,
+            secondary: None,
         })?;
         Ok(Token {
             kind: TokenKind::Number(value),
@@ -211,6 +217,7 @@ impl<'a> Lexer<'a> {
                 offset: start,
                 len: 1,
                 help: None,
+                secondary: None,
             }),
         }
     }
@@ -245,6 +252,7 @@ impl<'a> Parser<'a> {
             offset: self.cur.offset,
             len: self.cur.len.max(1),
             help: None,
+            secondary: None,
         }
     }
 
@@ -259,6 +267,7 @@ impl<'a> Parser<'a> {
                 offset: self.cur.offset,
                 len: self.cur.len.max(1),
                 help: None,
+                secondary: None,
             }),
         }
     }
@@ -314,6 +323,7 @@ impl<'a> Parser<'a> {
                     offset: self.cur.offset,
                     len: 1,
                     help: Some(format!("rule '{name}' is missing a closing '}}'")),
+                    secondary: None,
                 });
             }
 
@@ -343,6 +353,7 @@ impl<'a> Parser<'a> {
                                 offset: unit_tok.offset,
                                 len: unit_tok.len,
                                 help: Some("expected one of: sec, min, hour".to_string()),
+                                secondary: None,
                             });
                         }
                     };
@@ -369,6 +380,7 @@ impl<'a> Parser<'a> {
                         offset: field_tok.offset,
                         len: field_tok.len,
                         help: Some("expected 'rate' or 'burst'".to_string()),
+                        secondary: None,
                     });
                 }
             }
@@ -380,6 +392,7 @@ impl<'a> Parser<'a> {
             offset: name_offset,
             len: name.len(),
             help: Some("add a line like 'rate = 5/sec'".to_string()),
+            secondary: None,
         })?;
         let period = period.unwrap();
         let burst = burst.unwrap_or(0);
@@ -401,7 +414,29 @@ fn expect_whole(value: f64, offset: usize, len: usize, what: &str) -> Result<u32
             offset,
             len,
             help: Some("fractional or negative values are not supported".to_string()),
+            secondary: None,
         });
     }
     Ok(value as u32)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn duplicate_rule_points_at_both_definitions() {
+        let src = "rule login {\n    rate = 5/sec\n}\n\nrule login {\n    rate = 1/sec\n}\n";
+        let err = parse_rules(src).unwrap_err();
+        assert!(err.message.contains("defined more than once"));
+
+        let map = crate::diagnostics::SourceMap::new(src);
+        // primary span is the second (offending) definition, on line 5
+        assert_eq!(map.line_col(err.offset).0, 5);
+
+        let secondary = err.secondary.expect("expected a secondary span");
+        assert!(secondary.message.contains("first defined"));
+        // secondary span points back at the first definition, on line 1
+        assert_eq!(map.line_col(secondary.offset).0, 1);
+    }
 }

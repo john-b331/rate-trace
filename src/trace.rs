@@ -36,6 +36,7 @@ pub fn parse_trace(src: &str) -> Result<Vec<TraceEntry>, Diagnostic> {
                 offset: rule_offset,
                 len: rule_text.len(),
                 help: Some("expected a line like 'login 1.5'".to_string()),
+                secondary: None,
             });
         }
         if tokens.len() > 2 {
@@ -46,6 +47,7 @@ pub fn parse_trace(src: &str) -> Result<Vec<TraceEntry>, Diagnostic> {
                 offset: extra_offset,
                 len: line_end - extra_offset,
                 help: None,
+                secondary: None,
             });
         }
 
@@ -59,6 +61,7 @@ pub fn parse_trace(src: &str) -> Result<Vec<TraceEntry>, Diagnostic> {
             help: Some(
                 "timestamps are seconds since the start of the trace, e.g. '1.5'".to_string(),
             ),
+            secondary: None,
         })?;
         if !seconds.is_finite() || seconds < 0.0 {
             return Err(Diagnostic {
@@ -66,6 +69,7 @@ pub fn parse_trace(src: &str) -> Result<Vec<TraceEntry>, Diagnostic> {
                 offset: time_offset,
                 len: time_text.len(),
                 help: Some("timestamps must be non-negative".to_string()),
+                secondary: None,
             });
         }
         let at = Duration::from_secs_f64(seconds);
@@ -80,6 +84,7 @@ pub fn parse_trace(src: &str) -> Result<Vec<TraceEntry>, Diagnostic> {
                         "sort the trace by timestamp, or split it into per-rule traces"
                             .to_string(),
                     ),
+                    secondary: None,
                 });
             }
         }

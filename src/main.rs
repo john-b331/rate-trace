@@ -111,6 +111,7 @@ fn run_trace(rules_path: &str, trace_path: &str) -> ExitCode {
                     "define 'rule {} {{ ... }}' in {rules_path}",
                     entry.rule
                 )),
+                secondary: None,
             };
             eprint!("{}", diag.render(trace_path, &trace_map));
             return ExitCode::FAILURE;

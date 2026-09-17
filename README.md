@@ -74,6 +74,34 @@ location, the source line itself, and a caret under the specific token that's
 wrong. No "syntax error somewhere in your file" — you get the line, the
 column, and usually a suggestion for what was expected instead.
 
+Some errors involve two places in the file rather than one — a duplicate
+rule name points at both the offending definition and the first one it
+clashes with:
+
+```
+$ cat examples/dup.rl
+rule login {
+    rate = 5/sec
+}
+
+rule login {
+    rate = 1/sec
+}
+
+$ cargo run -- check examples/dup.rl
+error: rule 'login' is defined more than once
+ --> examples/dup.rl:5:6
+  |
+5 | rule login {
+  |      ^^^^^
+  = help: rule names must be unique within a file
+note: 'login' first defined here
+ --> examples/dup.rl:1:6
+  |
+1 | rule login {
+  |      ^^^^^
+```
+
 ## Tracing a request stream
 
 A trace file is one request per line: `<rule-name> <timestamp>`, where the
@@ -107,6 +135,5 @@ No external dependencies — just `cargo build` or `cargo run`.
 
 ## Roadmap
 
-- support multi-span diagnostics for duplicate rule errors (point at both definitions)
 - add unit tests for lexer/parser edge cases
 - support week/day time units and fractional rates
